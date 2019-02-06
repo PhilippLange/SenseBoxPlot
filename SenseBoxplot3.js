@@ -1,25 +1,15 @@
-// //requirejs(["d3.min"]);
-// requirejs.config({
-// 	shim : {
-// 		"extensions/SenseBoxplot/box" : {
-// 			"deps" : ["Extensions/SenseBoxplot/d3.min"]
-// 		}
-// 	}
-// });
-
-//define(["jquery", "text!./SenseBoxplot.css", "./d3.min", "text!./data2.csv"], function($, cssContent, d3, datacsv) {'use strict';
-define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent, d3) {'use strict';
-	//console.log(d3)
+define(["jquery", "text!./SenseBoxplot3.css", "./d3.min"], function($, cssContent, d3) {
+	'use strict';
 	$("<style>").html(cssContent).appendTo("head");
 	return {
 		initialProperties : {
-			version: 1.0,
+			version: 1.1,
 			qHyperCubeDef : {
 				qDimensions : [],
 				qMeasures : [],
 				qInitialDataFetch : [{
-					qWidth : 4,
-					qHeight : 500
+					qWidth : 10,
+					qHeight : 20
 				}]
 			}
 		},
@@ -30,33 +20,23 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 				dimensions : {
 					label: "dims",
 					uses : "dimensions",
-					min : 2,
-					max: 2
+					min : 1,
+					max : 1
 				},
 				measures : {
 					uses : "measures",
-					min : 0,
-					max: 1
-				},
-				sorting : {
-					uses : "sorting"
+					min : 7,
+					max : 7,
 				},
 				other: {
 					label: "Other",
 					type: "items",
 					items: {
-						outliersOption: {
-							type : "boolean",
-							component : "switch",
-							label : "Display outliers?",
-							ref : "other.showOutliers",
-							options : [{
-								value : true,
-								label : "Yes"
-							},{
-								value : false,
-								label : "No"
-							}]
+						yAxisName: {
+							type : "string",
+							label : "Title Y-Axis",
+							ref : "other.yAxisName",
+							defaultValue: "Y-Axis"
 						}
 					}
 				},
@@ -68,12 +48,7 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 		snapshot : {
 			canTakeSnapshot : true
 		},
-		// resize: function() {
-  //       },
 		paint : function($element,layout) {
-
-			
-
 			var _this = this,
 				   id = "sb_" + layout.qInfo.qId;
 
@@ -83,96 +58,45 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
             } else {
                 $element.append($('<div />').attr("id", id));
             }
-
+            //console.log(GetSheet("rNDVjKR").GetBarchart("pbYvEmw").Properties.HyperCubeDef.LayoutExclude.Get<VisualizationHyperCubeDef>("qHyperCubeDef"));
    			var destElement = document.getElementById(id);
-
-
+   			
    			//Bring in Data
    			var qData = layout.qHyperCube.qDataPages[0];
-   			//console.log('xAxis Title',layout.qHyperCube.qDimensionInfo[0].qFallbackTitle);
-   			var xAxisName = layout.qHyperCube.qDimensionInfo[0].qFallbackTitle;
-   			var yAxisName = layout.qHyperCube.qDimensionInfo[1].qFallbackTitle;
-			var qMatrix = qData.qMatrix;
 
+   			var xAxisName = layout.qHyperCube.qDimensionInfo[0].qFallbackTitle;
+   			var yAxisName = layout.other.yAxisName;
+
+			var qMatrix = qData.qMatrix;
 			var source = qMatrix.map(function(d) {
-			 	return {
-			 		"Dim":d[0].qText,  
-			 		"Meas":d[1].qNum,	 
-			 		"nodeelem": d[0].qElemNumber //first dimension!
+				var whis = [];
+				if(d[d.length-2].qIsNull){whis.push(d[d.length-3].qNum)}else{whis.push(d[d.length-2].qNum)};
+				if(d[2].qIsNull){whis.push(d[3].qNum)}else{whis.push(d[2].qNum)};
+				return {
+			 		"dim" : d[0].qText,
+			 		"nodeelem" : d[0].qElemNumber,
+			 		"out" : [d[d.length-1], d[1]].map(function(d){if(d.qIsNull == true){return null;} else return d.qNum;}).filter(function(d){return d != null;}),
+			 		"whis" : whis,
+			 		"dat" : d.slice(3, d.length-2).map(function(d){return d.qNum;}).sort(d3.ascending)
 			 	}
 			 });
 
 			var min = Infinity,
 		    	max = -Infinity;
 
-			//console.log(source)
-
-			var dataArray =  [];
-
-			for (var i = 0; i < source.length; i++ ) { 
-				var insideArray = [];
-				insideArray.push(source[i].Dim, []);
-		 		//console.log(insideArray); 
-		 		dataArray.push(insideArray);
-
-		    }
-
-		    var DimsAll = [];
-		    for (var i = 0; i < source.length; i++ ) { 
-		 		DimsAll.push(source[i].Dim);
-		    }
-		    var dimsUnique = _.uniq(DimsAll)
-
-		    var filterednames;
-		    var dataArray=[];
-
-		    var measureArray = [];
-
-		    dimsUnique.forEach ( function (d) {
-		    	var insideArray=[];
-		    	//dataArray.push(d)
-			    filterednames = source.filter(function(obj) {
-									    return (obj.Dim === d);
-									});
-			    
-			    var insideMeas = [];
-			    for (var i = 0; i < filterednames.length; i++ ) {
-			    	//console.log(filterednames[i].Meas)
-			    	insideMeas.push(filterednames[i].Meas)
-			    	measureArray.push(filterednames[i].Meas)
-			    }
-
-			    //console.log(insideMeas)
-			    insideArray.push(d);
-			    insideArray.push(insideMeas);
-			    dataArray.push(insideArray);
+			min = Math.min.apply(null, source.map(function(d) {
+				return Math.min.apply(null, d.out.concat(d.whis.concat(d.dat)));
+			}));
+			max = Math.max.apply(null, source.map(function(d) {
+				return Math.max.apply(null, d.out.concat(d.whis.concat(d.dat)));
+			}));
+console.log(source);
+			//add absolute min max to each dimension
+			source.forEach(function(element){
+				element.min = min;
+				element.max = max;
 			});
-
-			//console.log(dataArray)
-			//console.log(measureArray)
-
-			min = Math.min.apply(Math, measureArray);
-			max = Math.max.apply(Math, measureArray);
 			//End Data Load
-		    
-
-		    ////Bring in Data from CSV to test
-			// var mydata = new Array();
-	  //       var csvLines = datacsv.split("\r");
-	  //       var csvKeys = csvLines[0].split(",");
-	  //       csvLines.splice(0,1);
-	  //       csvLines.forEach(function(line){
-	  //           var row = new Object();
-	  //           var e = line.split(",");
-	  //           for(var i=0; i<csvKeys.length; i++){
-	  //                   var key = String(csvKeys[i]);
-	  //                   var val = Number(e[i]);
-	  //                   row[key] = val;
-	  //           }
-	  //           mydata.push(row);
-	  //       });
-	           //console.log(mydata);
-
 
 			d3.box = function() {
 			  var width = 1,
@@ -182,6 +106,7 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 			      value = Number,
 			      whiskers = boxWhiskers,
 			      quartiles = boxQuartiles,
+			      outliers = boxOutliers,
 				  showLabels = true, // whether or not to show text labels
 				  numBars = 4,
 				  curBar = 1,
@@ -193,31 +118,23 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 			      //d = d.map(value).sort(d3.ascending);
 				  //var boxIndex = data[0];
 				  //var boxIndex = 1;
-				  var d = data[1].sort(d3.ascending);
 				  //console.log(quartiles(d));
 				  //console.log(d);
 				  
 			      var g = d3.select(this),
-			          n = d.length,
-			          min = d[0],
-			          max = d[n - 1];
+			          min = data.min,
+			          max = data.max;
 
 			      // Compute quartiles. Must return exactly 3 elements.
-			      var quartileData = d.quartiles = quartiles(d);
-
+			      var quartileData = data.dat;
 			      // Compute whiskers. Must return exactly 2 elements, or null.
-			      var whiskerIndices = whiskers && whiskers.call(this, d, i),
-			          whiskerData = whiskerIndices && whiskerIndices.map(function(i) { return d[i]; });
-
-			      // Compute outliers. If no whiskers are specified, all data are "outliers".
-			      // We compute the outliers as indices, so that we can join across transitions!
-			      var outlierIndices = whiskerIndices
-			          ? d3.range(0, whiskerIndices[0]).concat(d3.range(whiskerIndices[1] + 1, n))
-			          : d3.range(n);
+			      var whiskerData = data.whis;
+			      // Compute whiskers. Must return exactly 2 elements, or null.
+				  var outlierData = data.out;
 
 			      // Compute the new x-scale.
 			      var x1 = d3.scale.linear()
-			          .domain(domain && domain.call(this, d, i) || [min, max])
+			          .domain([min, max])
 			          .range([height, 0]);
 
 			      // Retrieve the old x-scale, if this is an update.
@@ -339,33 +256,30 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 			          .remove();
 
 			      // Update outliers.
-			      if (layout.other.showOutliers == true) {
 			      var outlier = g.selectAll("circle.outlier")
-			          .data(outlierIndices, Number);
+			          .data(outlierData || []);
 
 			      outlier.enter().insert("circle", "text")
 			          .attr("class", "outlier")
 			          .attr("r", 5)
 			          .attr("cx", width / 2)
-			          .attr("cy", function(i) { return x0(d[i]); })
+			          .attr("cy", x0)
 			          .style("opacity", 1e-6)
 			        .transition()
 			          .duration(duration)
-			          .attr("cy", function(i) { return x1(d[i]); })
+			          .attr("cy", x1)
 			          .style("opacity", 1);
 
 			      outlier.transition()
 			          .duration(duration)
-			          .attr("cy", function(i) { return x1(d[i]); })
+			          .attr("cy", x1)
 			          .style("opacity", 1);
 
 			      outlier.exit().transition()
 			          .duration(duration)
-			          .attr("cy", function(i) { return x1(d[i]); })
+			          .attr("cy", x1)
 			          .style("opacity", 1e-6)
 			          .remove();
-
-			      }
 
 			      // Compute the tick format.
 			      var format = tickFormat || x1.tickFormat(8);
@@ -422,6 +336,39 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 			          .attr("y", x1)
 			          .style("opacity", 1e-6)
 			          .remove();
+
+
+
+			      var outlierTick = g.selectAll("text.outlier")
+			          .data(outlierData || []);
+				if(showLabels == true) {
+			      outlierTick.enter().append("text")
+			          .attr("class", "whisker")
+			          .attr("dy", ".3em")
+			          .attr("dx", 6)
+			          .attr("x", width)
+			          .attr("y", x0)
+			          .text(format)
+			          .style("opacity", 1e-6)
+			        .transition()
+			          .duration(duration)
+			          .attr("y", x1)
+			          .style("opacity", 1);
+				}
+			      outlierTick.transition()
+			          .duration(duration)
+			          .text(format)
+			          .attr("y", x1)
+			          .style("opacity", 1);
+
+			      outlierTick.exit().transition()
+			          .duration(duration)
+			          .attr("y", x1)
+			          .style("opacity", 1e-6)
+			          .remove();
+
+
+
 			    });
 			    d3.timer.flush();
 			  }
@@ -480,99 +427,35 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 			    return box;
 			  };
 
+			  box.outliers = function(x) {
+			    if (!arguments.length) return outliers;
+			    outliers = x;
+			    return box;
+			  };
+
 			  return box;
 			};
 
+			function boxOutliers(d) {
+			  return d.out;
+			}
+
 			function boxWhiskers(d) {
-			  return [0, d.length - 1];
+			  return d.whis;
 			}
 
 			function boxQuartiles(d) {
-			  return [
-			    d3.quantile(d, .25),
-			    d3.quantile(d, .5),
-			    d3.quantile(d, .75)
-			  ];
+			  return d.dat;
 			}
 
 			//}
-
-
-
 
 			var labels = true; // show the text labels beside individual boxplots?
 
 			var margin = {top: 30, right: 50, bottom: 90, left: 50};
 			var width = $element.width() - margin.left - margin.right;
 			var height = $element.height() - margin.top - margin.bottom;
-			// console.log('width: '+width)
-			// console.log('height: '+height)	
-
 				
-			//// parse in the data from CSV
-			////console.log(datacsv);
-			////d3.csv(datacsv, function(error, csv) {
-				////using an array of arrays with
-				////data[n][2] 
-				////where n = number of columns in the csv file 
-				////data[i][0] = name of the ith column
-				////data[i][1] = array of values of ith column
-
-				// var data = [];
-				// data[0] = [];
-				// data[1] = [];
-				// data[2] = [];
-				// data[3] = [];
-				// // add more rows if your csv file has more columns
-
-				// // add here the header of the csv file
-				// data[0][0] = "Q1";
-				// data[1][0] = "Q2";
-				// data[2][0] = "Q3";
-				// data[3][0] = "Q4";
-				// // add more rows if your csv file has more columns
-
-				// data[0][1] = [];
-				// data[1][1] = [];
-				// data[2][1] = [];
-				// data[3][1] = [];
-			  
-				// mydata.forEach(function(x) {
-				// 	//console.log(x)
-				// 	var v1 = Math.floor(x.Q1),
-				// 		v2 = Math.floor(x.Q2),
-				// 		v3 = Math.floor(x.Q3),
-				// 		v4 = Math.floor(x.Q4);
-				// 		// add more variables if your csv file has more columns
-				// 		console.log('v1: '+v1)
-				// 		console.log('v2: '+v2)
-				// 		console.log('v3: '+v3)
-				// 		console.log('v4: '+v4)
-				// 	var rowMax = Math.max(v1, Math.max(v2, Math.max(v3,v4)));
-				// 	var rowMin = Math.min(v1, Math.min(v2, Math.min(v3,v4)));
-
-
-
-				// 	data[0][1].push(v1);
-				// 	data[1][1].push(v2);
-				// 	data[2][1].push(v3);
-				// 	data[3][1].push(v4);
-				// 	 // add more rows if your csv file has more columns
-
-				// 	//console.log(data)
-
-				// 	if (rowMax > max) max = rowMax;
-				// 	if (rowMin < min) min = rowMin;	
-
-				// 	console.log('max: '+max)
-				// 	console.log('min: '+min)
-				// });
-
-				// //var data = dataArray;
-			 //    console.log(dataArray)
-			 //  	console.log(data);
-			 ////End CSV-related data import
-
 				var chart = d3.box()
 					.whiskers(iqr(1.5))
 					.height(height)	
@@ -587,9 +470,9 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 					.attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 				
 				// the x-axis
-				var x = d3.scale.ordinal()	   
-					.domain( dataArray.map(function(d) { return d[0] } ) )	    
-					.rangeRoundBands([0 , width], 0.7, 0.3); 		
+				var x = d3.scale.ordinal()
+					.domain( source.map(function(d) { return d.dim } ) )
+					.rangeRoundBands([0 , width], 0.7, 0.3);
 
 				var xAxis = d3.svg.axis()
 					.scale(x)
@@ -604,24 +487,22 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 			    .scale(y)
 			    .orient("left");
 
-				// draw the boxplots	
-				svg.selectAll(".box")	   
-			      .data(dataArray)
+				// draw the boxplots
+				svg.selectAll(".box")
+			      .data(source)
 				  .enter().append("g")
-					.attr("transform", function(d) { return "translate(" +  x(d[0])  + "," + margin.top + ")"; } )
-			      .call(chart.width(x.rangeBand())); 
-				
-				      
+					.attr("transform", function(d) { return "translate(" +  x(d.dim)  + "," + margin.top + ")"; } )
+			      .call(chart.width(x.rangeBand()));
+
 				// // add a title
 				// svg.append("text")
-			 //        .attr("x", (width / 2))             
-			 //        .attr("y", 0 + (margin.top / 2))
-			 //        .attr("text-anchor", "middle")  
-			 //        .style("font-size", "18px") 
-			 //        //.style("text-decoration", "underline")  
-			 //        .text("Revenue");
-			 
-				 // draw y axis
+				//        .attr("x", (width / 2))             
+				//        .attr("y", 0 + (margin.top / 2))
+				//        .attr("text-anchor", "middle")  
+				//        .style("font-size", "18px") 
+				//        //.style("text-decoration", "underline")  
+				//        .text("Revenue");
+				// draw y axis
 				svg.append("g")
 			        .attr("class", "y axis")
 			        .call(yAxis)
@@ -662,7 +543,6 @@ define(["jquery", "text!./SenseBoxplot.css", "./d3.min"], function($, cssContent
 			  };
 			}
 			//}
-		/* */
 		}
 		
 	};
